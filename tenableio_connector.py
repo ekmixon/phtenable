@@ -206,11 +206,9 @@ class TenableioConnector(BaseConnector):
             parsed_input = [item_type(item.strip()) for item in parsed_input]
         except Exception:
             raise TypeError(
-                "Invalid item value for string to list conversion. Expected item type {}, got {}".format(
-                    str(item_type),
-                    input_str
-                )
+                f"Invalid item value for string to list conversion. Expected item type {str(item_type)}, got {input_str}"
             )
+
         return parsed_input
 
     def _parse_datetime_field(self, input_time: Union[str, int]) -> datetime:
@@ -231,7 +229,7 @@ class TenableioConnector(BaseConnector):
             try:
                 parsed_input = dateutil.parser.isoparse(input_time)
             except Exception:
-                raise ValueError("Cannot parse datetime field: {}".format(input_time))
+                raise ValueError(f"Cannot parse datetime field: {input_time}")
         return parsed_input
 
     def _handle_test_connectivity(self, param):
@@ -312,7 +310,7 @@ class TenableioConnector(BaseConnector):
 
         try:
             tags = self._tio.tags.list()
-            data = [tag for tag in tags]
+            data = list(tags)
         except Exception as e:
             self.save_progress(traceback.format_exc())
             return action_result.set_status(phantom.APP_ERROR, str(e))
@@ -354,7 +352,7 @@ class TenableioConnector(BaseConnector):
                 created_at=parsed_created_at,
                 updated_at=parsed_updated_at
             )
-            data = [asset for asset in assets]
+            data = list(assets)
             self.save_progress("Asset export finished.")
         except Exception as e:
             self.save_progress(traceback.format_exc())
@@ -394,7 +392,7 @@ class TenableioConnector(BaseConnector):
 
         try:
             agents = self._tio.agents.list(*parsed_filters)
-            data = [agent for agent in agents]
+            data = list(agents)
         except Exception as e:
             self.save_progress(traceback.format_exc())
             return action_result.set_status(phantom.APP_ERROR, str(e))
@@ -463,7 +461,7 @@ class TenableioConnector(BaseConnector):
 
         try:
             scans = self._tio.scans.list()
-            data = [scan for scan in scans]
+            data = list(scans)
         except Exception as e:
             self.save_progress(traceback.format_exc())
             return action_result.set_status(phantom.APP_ERROR, str(e))
@@ -518,9 +516,12 @@ class TenableioConnector(BaseConnector):
 
             if tags:
                 try:
-                    parsed_tags = [(k, v) for k, v in json.loads(tags).iteritems()]
+                    parsed_tags = list(json.loads(tags).iteritems())
                 except Exception:
-                    raise ValueError("tags parameter must be a dict of key value pairs, got '{}' instead".format(tags))
+                    raise ValueError(
+                        f"tags parameter must be a dict of key value pairs, got '{tags}' instead"
+                    )
+
             else:
                 parsed_tags = []
 
@@ -536,7 +537,7 @@ class TenableioConnector(BaseConnector):
                 state=parsed_state,
                 tags=parsed_tags
             )
-            data = [vuln for vuln in vulns]
+            data = list(vulns)
             self.save_progress("Vulnerability export finished successfully.")
         except Exception as e:
             self.save_progress(traceback.format_exc())
@@ -646,26 +647,24 @@ def main():
 
     if username and password:
         try:
-            login_url = TenableioConnector._get_phantom_base_url() + "/login"
+            login_url = f"{TenableioConnector._get_phantom_base_url()}/login"
 
             print("Accessing the Login page")
             r = requests.get(login_url, verify=False)
             csrftoken = r.cookies["csrftoken"]
 
-            data = dict()
-            data["username"] = username
-            data["password"] = password
-            data["csrfmiddlewaretoken"] = csrftoken
+            data = {
+                "username": username,
+                "password": password,
+                "csrfmiddlewaretoken": csrftoken,
+            }
 
-            headers = dict()
-            headers["Cookie"] = "csrftoken=" + csrftoken
-            headers["Referer"] = login_url
-
+            headers = {"Cookie": f"csrftoken={csrftoken}", "Referer": login_url}
             print("Logging into Platform to get the session id")
             r2 = requests.post(login_url, verify=False, data=data, headers=headers)
             session_id = r2.cookies["sessionid"]
         except Exception as e:
-            print("Unable to get session id from the platform. Error: " + str(e))
+            print(f"Unable to get session id from the platform. Error: {str(e)}")
             exit(1)
 
     with open(args.input_test_json) as f:
